@@ -14,6 +14,21 @@ export class ApiResponse {
     });
   }
 
+  static paginated<T>(
+    res: Response,
+    data: T,
+    meta: Record<string, unknown>,
+    message = 'Success',
+    statusCode = 200
+  ): Response {
+    return res.status(statusCode).json({
+      success: true,
+      message,
+      data,
+      meta,
+    });
+  }
+
   static created<T>(
     res: Response,
     data: T,

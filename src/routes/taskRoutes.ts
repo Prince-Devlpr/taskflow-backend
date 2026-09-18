@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { TaskController } from '../controllers/taskController';
 import { authenticate } from '../middleware/authMiddleware';
 import { validateBody, validateQuery } from '../middleware/validateMiddleware';
+import { createLimiter } from '../middleware/rateLimiters';
 import { createTaskSchema, updateTaskSchema, taskQuerySchema } from '../validators/taskValidator';
 
 const router = Router();
@@ -14,7 +15,7 @@ router.get('/stats', TaskController.getStats);
 
 // Tasks CRUD
 router.get('/', validateQuery(taskQuerySchema), TaskController.getTasks);
-router.post('/', validateBody(createTaskSchema), TaskController.createTask);
+router.post('/', createLimiter, validateBody(createTaskSchema), TaskController.createTask);
 router.get('/:id', TaskController.getTaskById);
 router.put('/:id', validateBody(updateTaskSchema), TaskController.updateTask);
 router.patch('/:id/complete', TaskController.toggleComplete);

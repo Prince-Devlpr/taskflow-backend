@@ -4,58 +4,72 @@ import { Category, Priority } from '@prisma/client';
 export const CategoryEnum = z.nativeEnum(Category);
 export const PriorityEnum = z.nativeEnum(Priority);
 
-export const createTaskSchema = z.object({
-  title: z
-    .string({ required_error: 'Task title is required' })
-    .trim()
-    .min(1, 'Task title cannot be empty')
-    .max(200, 'Task title cannot exceed 200 characters'),
-  description: z
-    .string()
-    .trim()
-    .max(2000, 'Description cannot exceed 2000 characters')
-    .optional()
-    .nullable(),
-  category: CategoryEnum.default(Category.ASSIGNMENT),
-  priority: PriorityEnum.default(Priority.MEDIUM),
-  dueDate: z
-    .string({ required_error: 'Due date is required' })
-    .refine((date) => !isNaN(Date.parse(date)), {
-      message: 'Due date must be a valid ISO-8601 date string',
-    }),
-});
+export const createTaskSchema = z
+  .object({
+    title: z
+      .string({ required_error: 'Task title is required' })
+      .trim()
+      .min(1, 'Task title cannot be empty')
+      .max(200, 'Task title cannot exceed 200 characters'),
+    description: z
+      .string()
+      .trim()
+      .max(2000, 'Description cannot exceed 2000 characters')
+      .optional()
+      .nullable(),
+    category: CategoryEnum.default(Category.ASSIGNMENT),
+    priority: PriorityEnum.default(Priority.MEDIUM),
+    dueDate: z
+      .string({ required_error: 'Due date is required' })
+      .refine((date) => !isNaN(Date.parse(date)), {
+        message: 'Due date must be a valid ISO-8601 date string',
+      }),
+  })
+  // Reject unexpected fields (e.g. userId, completed, id) to block mass assignment.
+  .strict('Unexpected fields are not allowed');
 
-export const updateTaskSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(1, 'Task title cannot be empty')
-    .max(200, 'Task title cannot exceed 200 characters')
-    .optional(),
-  description: z
-    .string()
-    .trim()
-    .max(2000, 'Description cannot exceed 2000 characters')
-    .optional()
-    .nullable(),
-  category: CategoryEnum.optional(),
-  priority: PriorityEnum.optional(),
-  dueDate: z
-    .string()
-    .refine((date) => !isNaN(Date.parse(date)), {
-      message: 'Due date must be a valid ISO-8601 date string',
-    })
-    .optional(),
-  completed: z.boolean().optional(),
-});
+export const updateTaskSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, 'Task title cannot be empty')
+      .max(200, 'Task title cannot exceed 200 characters')
+      .optional(),
+    description: z
+      .string()
+      .trim()
+      .max(2000, 'Description cannot exceed 2000 characters')
+      .optional()
+      .nullable(),
+    category: CategoryEnum.optional(),
+    priority: PriorityEnum.optional(),
+    dueDate: z
+      .string()
+      .refine((date) => !isNaN(Date.parse(date)), {
+        message: 'Due date must be a valid ISO-8601 date string',
+      })
+      .optional(),
+    completed: z.boolean().optional(),
+  })
+  .strict('Unexpected fields are not allowed');
+
+// Coerce pagination params from query strings and clamp to safe bounds.
+const MAX_PAGE_SIZE = 100;
 
 export const taskQuerySchema = z.object({
-  status: z.enum(['all', 'pending', 'completed', 'today', 'upcoming', 'overdue']).optional().default('all'),
+  status: z
+    .enum(['all', 'pending', 'completed', 'today', 'upcoming', 'overdue'])
+    .optional()
+    .default('all'),
   category: CategoryEnum.optional(),
   priority: PriorityEnum.optional(),
-  search: z.string().optional(),
+  search: z.string().max(200, 'Search query is too long').optional(),
   sortBy: z.enum(['dueDate', 'priority', 'createdAt', 'title']).optional().default('dueDate'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
+  page: z.coerce.number().int().min(1).max(100000).optional().default(1),
+  // Never allow unbounded result sets — hard cap protects against DoS.
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).optional().default(50),
 });
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;

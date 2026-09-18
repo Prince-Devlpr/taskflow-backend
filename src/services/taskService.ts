@@ -5,7 +5,16 @@ import { CreateTaskInput, UpdateTaskInput, TaskQueryInput } from '../validators/
 
 export class TaskService {
   static async getTasks(userId: string, query: TaskQueryInput) {
-    const { status, category, priority, search, sortBy = 'dueDate', sortOrder = 'asc' } = query;
+    const {
+      status,
+      category,
+      priority,
+      search,
+      sortBy = 'dueDate',
+      sortOrder = 'asc',
+      page = 1,
+      limit = 50,
+    } = query;
 
     const where: Prisma.TaskWhereInput = {
       userId,
@@ -67,12 +76,26 @@ export class TaskService {
       orderBy.dueDate = validSortOrder;
     }
 
-    const tasks = await prisma.task.findMany({
-      where,
-      orderBy,
-    });
+    // Enforce pagination with a hard cap (the validator already clamps `limit`
+    // to <= 100) so a client can never request an unbounded result set.
+    const take = Math.min(Math.max(limit, 1), 100);
+    const skip = (Math.max(page, 1) - 1) * take;
 
-    return tasks;
+    const [tasks, total] = await Promise.all([
+      prisma.task.findMany({ where, orderBy, skip, take }),
+      prisma.task.count({ where }),
+    ]);
+
+    return {
+      tasks,
+      pagination: {
+        page,
+        limit: take,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / take)),
+        hasMore: skip + tasks.length < total,
+      },
+    };
   }
 
   static async getTaskById(taskId: string, userId: string) {

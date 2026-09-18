@@ -3,6 +3,7 @@ import { prisma } from '../config/database';
 import { config } from '../config/env';
 import { AppError } from '../utils/appError';
 import { hashPassword, comparePassword } from '../utils/password';
+import { logger } from '../utils/logger';
 import { RegisterInput, LoginInput } from '../validators/authValidator';
 
 export class AuthService {
@@ -44,13 +45,18 @@ export class AuthService {
     });
 
     if (!user) {
+      // Do NOT reveal whether the account exists (prevents user enumeration).
+      logger.security('login_failed', { reason: 'no_account' });
       throw new AppError('Invalid email or password', 401);
     }
 
     const isPasswordValid = await comparePassword(input.password, user.passwordHash);
     if (!isPasswordValid) {
+      logger.security('login_failed', { reason: 'bad_password', userId: user.id });
       throw new AppError('Invalid email or password', 401);
     }
+
+    logger.security('login_success', { userId: user.id });
 
     const token = jwt.sign({ userId: user.id }, config.jwtSecret, {
       expiresIn: config.jwtExpiresIn as any,

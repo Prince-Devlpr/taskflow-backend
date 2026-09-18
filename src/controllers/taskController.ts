@@ -7,8 +7,9 @@ import { AuthenticatedRequest } from '../middleware/authMiddleware';
 export class TaskController {
   static async getTasks(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tasks = await TaskService.getTasks(req.userId!, req.query as any);
-      ApiResponse.success(res, tasks, 'Tasks retrieved successfully');
+      const { tasks, pagination } = await TaskService.getTasks(req.userId!, req.query as any);
+      // `data` stays a plain array (backward compatible); pagination goes in `meta`.
+      ApiResponse.paginated(res, tasks, pagination, 'Tasks retrieved successfully');
     } catch (error) {
       next(error);
     }

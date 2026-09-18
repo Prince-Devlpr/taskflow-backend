@@ -1,7 +1,11 @@
 import bcrypt from 'bcryptjs';
 
+// Cost factor 12 balances strong resistance to offline brute-force against
+// acceptable login latency on typical hardware.
+const BCRYPT_COST = 12;
+
 export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(10);
+  const salt = await bcrypt.genSalt(BCRYPT_COST);
   return bcrypt.hash(password, salt);
 }
 
